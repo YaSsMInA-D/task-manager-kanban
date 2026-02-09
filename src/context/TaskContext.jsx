@@ -26,6 +26,7 @@ export const TaskProvider = ({ children }) => {
     const newTask = {
       ...task,
       id: Date.now(),
+      createdAt: new Date().toISOString(),
     };
     setTasks([...tasks, newTask]);
   };
