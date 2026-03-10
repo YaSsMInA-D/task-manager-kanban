@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useTasks } from '../context/TaskContext';
+import './TaskCard.css';
+import PropTypes from 'prop-types';
 
-const TaskCard = ({ task, darkMode }) => {
+const TaskCard = memo(({ task, darkMode }) => {
   const { deleteTask, moveTask } = useTasks();
-
-  window.moveTaskFunction = moveTask;
 
   const statusOrder = ['To Do', 'In Progress', 'Done'];
   const currentIndex = statusOrder.indexOf(task.status);
@@ -12,145 +12,135 @@ const TaskCard = ({ task, darkMode }) => {
   const canMoveForward = currentIndex < statusOrder.length - 1;
   const canMoveBackward = currentIndex > 0;
 
-  const getCardStyle = () => {
-    const baseStyle = {
-      padding: '15px',
-      marginBottom: '10px',
-      borderRadius: '4px',
-      borderLeft: '4px solid #ddd',
-      cursor: 'grab',
-    };
-    
-    if (darkMode) {
-      baseStyle.backgroundColor = '#4a5568';
-      baseStyle.color = 'white';
-    } else {
-      baseStyle.backgroundColor = 'white';
-    }
-    
-    if (task.priority === 'High') {
-      baseStyle.borderLeftColor = 'red';
-    } else if (task.priority === 'Medium') {
-      baseStyle.borderLeftColor = 'orange';
-    } else {
-      baseStyle.borderLeftColor = 'green';
-    }
-    
-    return baseStyle;
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('taskId', task.id.toString());
+    e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragStart = (e) => {
-    e.dataTransfer.setData('taskId', task.id);
+  const handleDelete = () => {
+    if (window.confirm(`Delete task "${task.title}"?`)) {
+      deleteTask(task.id);
+    }
+  };
+
+  const handleMoveForward = () => {
+    moveTask(task.id, statusOrder[currentIndex + 1]);
+  };
+
+  const handleMoveBackward = () => {
+    moveTask(task.id, statusOrder[currentIndex - 1]);
+  };
+
+  const getPriorityClass = () => {
+    switch (task.priority) {
+      case 'High':
+        return 'priority-high';
+      case 'Medium':
+        return 'priority-medium';
+      case 'Low':
+        return 'priority-low';
+      default:
+        return '';
+    }
+  };
+
+  const getPriorityLabel = () => {
+    switch (task.priority) {
+      case 'High':
+        return '🔴 High';
+      case 'Medium':
+        return '🟡 Medium';
+      case 'Low':
+        return '🟢 Low';
+      default:
+        return task.priority;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
     <div 
-      style={getCardStyle()}
+      className={`task-card ${getPriorityClass()} ${darkMode ? 'dark' : ''}`}
       draggable
       onDragStart={handleDragStart}
     >
-      <div style={styles.header}>
-        <h4 style={styles.taskTitle}>{task.title}</h4>
+      <div className="task-header">
+        <h4 className="task-title">{task.title}</h4>
         <button 
-          onClick={() => deleteTask(task.id)}
-          style={darkMode ? styles.deleteButtonDark : styles.deleteButton}
+          onClick={handleDelete}
+          className="delete-btn"
+          aria-label="Delete task"
         >
           ×
         </button>
       </div>
       
-      {task.description && <p style={darkMode ? styles.descriptionDark : styles.description}>{task.description}</p>}
+      {task.description && (
+        <p className={`task-description ${darkMode ? 'dark' : ''}`}>
+          {task.description}
+        </p>
+      )}
       
-      <div>
-        <span style={darkMode ? styles.priorityDark : styles.priority}>
-          Priority: {task.priority}
+      <div className="task-meta">
+        <span className={`priority-badge ${task.priority.toLowerCase()}`}>
+          {getPriorityLabel()}
         </span>
+        
+        {task.createdAt && (
+          <span className={`task-date ${darkMode ? 'dark' : ''}`}>
+            📅 {formatDate(task.createdAt)}
+          </span>
+        )}
       </div>
       
-      <div style={styles.actions}>
+      <div className="task-actions">
         <button
-          onClick={() => moveTask(task.id, statusOrder[currentIndex - 1])}
+          onClick={handleMoveBackward}
           disabled={!canMoveBackward}
-          style={darkMode ? styles.moveButtonDark : styles.moveButton}
+          className={`move-btn ${darkMode ? 'dark' : ''}`}
+          aria-label="Move backward"
         >
           ←
         </button>
+        
+        <span className="task-status">
+          {task.status}
+        </span>
+        
         <button
-          onClick={() => moveTask(task.id, statusOrder[currentIndex + 1])}
+          onClick={handleMoveForward}
           disabled={!canMoveForward}
-          style={darkMode ? styles.moveButtonDark : styles.moveButton}
+          className={`move-btn ${darkMode ? 'dark' : ''}`}
+          aria-label="Move forward"
         >
           →
         </button>
       </div>
     </div>
   );
+});
+
+TaskCard.propTypes = {
+  task: PropTypes.shape({
+    id: PropTypes.number.isRequired,
+    title: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    priority: PropTypes.string.isRequired,
+    status: PropTypes.string.isRequired,
+    createdAt: PropTypes.string,
+  }).isRequired,
+  darkMode: PropTypes.bool.isRequired,
 };
 
-const styles = {
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-  },
-  taskTitle: {
-    margin: 0,
-  },
-  deleteButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '20px',
-    cursor: 'pointer',
-    color: '#999',
-  },
-  deleteButtonDark: {
-    background: 'none',
-    border: 'none',
-    fontSize: '20px',
-    cursor: 'pointer',
-    color: '#cbd5e0',
-  },
-  description: {
-    color: '#666',
-    margin: '10px 0',
-  },
-  descriptionDark: {
-    color: '#cbd5e0',
-    margin: '10px 0',
-  },
-  priority: {
-    backgroundColor: '#eee',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-  },
-  priorityDark: {
-    backgroundColor: '#718096',
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    color: 'white',
-  },
-  actions: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginTop: '10px',
-  },
-  moveButton: {
-    padding: '5px 10px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  moveButtonDark: {
-    padding: '5px 10px',
-    backgroundColor: '#4299e1',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-};
+TaskCard.displayName = 'TaskCard';
 
 export default TaskCard;

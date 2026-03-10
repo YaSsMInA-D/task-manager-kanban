@@ -1,5 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext();
 
@@ -15,57 +14,52 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const login = (credentialResponse) => {
-    try {
-      const decoded = jwtDecode(credentialResponse.credential);
-      const userData = {
-        name: decoded.name,
-        email: decoded.email,
-        picture: decoded.picture,
-        token: credentialResponse.credential
-      };
-      
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      if (window.google && window.google.accounts) {
-        window.google.accounts.id.disableAutoSelect();
+  useEffect(() => {
+    
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  const login = (response) => {
+    console.log('Google Response:', response);
+    
+    if (response.credential) {
+      try {
+        
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const userInfo = JSON.parse(jsonPayload);
+        console.log('User Info:', userInfo);
+        
+        const userData = {
+          name: userInfo.name,
+          email: userInfo.email,
+          picture: userInfo.picture,
+          sub: userInfo.sub
+        };
+        
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (error) {
+        console.error('Error parsing user data:', error);
       }
-    } catch (error) {
-      console.error('Error decoding JWT:', error);
-      alert('Authentication failed. Please try again.');
     }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
-    if (window.google && window.google.accounts) {
-      window.google.accounts.id.cancel();
-    }
-  };
-
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        localStorage.removeItem('user');
-      }
-    }
-    setLoading(false);
-  }, []);
-
-  const value = {
-    user,
-    login,
-    logout,
-    loading
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

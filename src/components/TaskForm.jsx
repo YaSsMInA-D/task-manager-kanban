@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import useForm from '../hooks/useForm';
 import { useTasks } from '../context/TaskContext';
+import './TaskForm.css';
+import PropTypes from 'prop-types';
 
 const TaskForm = ({ darkMode }) => {
   const { addTask } = useTasks();
+  const [errors, setErrors] = useState({});
   
   const { values, handleChange, resetForm } = useForm({
     title: '',
@@ -12,154 +15,160 @@ const TaskForm = ({ darkMode }) => {
     status: 'To Do',
   });
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!values.title.trim()) {
+      newErrors.title = 'Title is required';
+    } else if (values.title.length < 3) {
+      newErrors.title = 'Title must be at least 3 characters';
+    } else if (values.title.length > 50) {
+      newErrors.title = 'Title must be less than 50 characters';
+    }
+    
+    if (values.description && values.description.length > 200) {
+      newErrors.description = 'Description must be less than 200 characters';
+    }
+    
+    return newErrors;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!values.title.trim()) return;
+    const newErrors = validateForm();
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
     
-    addTask(values);
+    addTask({
+      title: values.title.trim(),
+      description: values.description.trim(),
+      priority: values.priority,
+      status: values.status,
+    });
+    
     resetForm();
+    setErrors({});
+    
+    // Show success message (optional)
+    const formElement = e.target;
+    formElement.classList.add('form-submitted');
+    setTimeout(() => {
+      formElement.classList.remove('form-submitted');
+    }, 500);
+  };
+
+  const handleClear = () => {
+    resetForm();
+    setErrors({});
   };
 
   return (
-    <form onSubmit={handleSubmit} style={darkMode ? styles.formDark : styles.form}>
-      <input
-        type="text"
-        name="title"
-        value={values.title}
-        onChange={handleChange}
-        placeholder="Task Title"
-        required
-        style={darkMode ? styles.inputDark : styles.input}
-      />
+    <form 
+      onSubmit={handleSubmit} 
+      className={`task-form ${darkMode ? 'dark' : ''}`}
+    >
+      <h3 className="form-title">Create New Task</h3>
       
-      <textarea
-        name="description"
-        value={values.description}
-        onChange={handleChange}
-        placeholder="Description"
-        style={darkMode ? styles.textareaDark : styles.textarea}
-      />
+      <div className="form-group">
+        <label htmlFor="title">
+          Title <span className="required">*</span>
+        </label>
+        <input
+          type="text"
+          id="title"
+          name="title"
+          value={values.title}
+          onChange={handleChange}
+          placeholder="Enter task title"
+          className={`form-input ${errors.title ? 'error' : ''} ${darkMode ? 'dark' : ''}`}
+          maxLength="50"
+        />
+        {errors.title && (
+          <span className="error-message">{errors.title}</span>
+        )}
+        <small className="char-count">
+          {values.title.length}/50
+        </small>
+      </div>
       
-      <select
-        name="priority"
-        value={values.priority}
-        onChange={handleChange}
-        style={darkMode ? styles.selectDark : styles.select}
-      >
-        <option value="Low">Low</option>
-        <option value="Medium">Medium</option>
-        <option value="High">High</option>
-      </select>
+      <div className="form-group">
+        <label htmlFor="description">
+          Description <span className="optional">(optional)</span>
+        </label>
+        <textarea
+          id="description"
+          name="description"
+          value={values.description}
+          onChange={handleChange}
+          placeholder="Enter task description"
+          rows="3"
+          className={`form-textarea ${errors.description ? 'error' : ''} ${darkMode ? 'dark' : ''}`}
+          maxLength="200"
+        />
+        {errors.description && (
+          <span className="error-message">{errors.description}</span>
+        )}
+        <small className="char-count">
+          {values.description.length}/200
+        </small>
+      </div>
       
-      <select
-        name="status"
-        value={values.status}
-        onChange={handleChange}
-        style={darkMode ? styles.selectDark : styles.select}
-      >
-        <option value="To Do">To Do</option>
-        <option value="In Progress">In Progress</option>
-        <option value="Done">Done</option>
-      </select>
+      <div className="form-row">
+        <div className="form-group">
+          <label htmlFor="priority">Priority</label>
+          <select
+            id="priority"
+            name="priority"
+            value={values.priority}
+            onChange={handleChange}
+            className={`form-select ${darkMode ? 'dark' : ''}`}
+          >
+            <option value="Low">🟢 Low</option>
+            <option value="Medium">🟡 Medium</option>
+            <option value="High">🔴 High</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="status">Initial Status</label>
+          <select
+            id="status"
+            name="status"
+            value={values.status}
+            onChange={handleChange}
+            className={`form-select ${darkMode ? 'dark' : ''}`}
+          >
+            <option value="To Do">📝 To Do</option>
+            <option value="In Progress">⚡ In Progress</option>
+            <option value="Done">✅ Done</option>
+          </select>
+        </div>
+      </div>
       
-      <div style={styles.buttons}>
-        <button type="submit" style={styles.submitButton}>
-          Add Task
+      <div className="form-actions">
+        <button 
+          type="submit" 
+          className="btn-submit"
+        >
+          ✨ Create Task
         </button>
-        <button type="button" onClick={resetForm} style={darkMode ? styles.resetButtonDark : styles.resetButton}>
-          Clear
+        <button 
+          type="button" 
+          onClick={handleClear}
+          className="btn-clear"
+        >
+          🗑️ Clear
         </button>
       </div>
     </form>
   );
 };
 
-const styles = {
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    marginBottom: '20px',
-    maxWidth: '400px',
-  },
-  formDark: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-    marginBottom: '20px',
-    maxWidth: '400px',
-  },
-  input: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-  },
-  inputDark: {
-    padding: '10px',
-    border: '1px solid #4a5568',
-    borderRadius: '4px',
-    backgroundColor: '#2d3748',
-    color: 'white',
-  },
-  textarea: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    resize: 'vertical',
-  },
-  textareaDark: {
-    padding: '10px',
-    border: '1px solid #4a5568',
-    borderRadius: '4px',
-    resize: 'vertical',
-    backgroundColor: '#2d3748',
-    color: 'white',
-  },
-  select: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    backgroundColor: 'white',
-  },
-  selectDark: {
-    padding: '10px',
-    border: '1px solid #4a5568',
-    borderRadius: '4px',
-    backgroundColor: '#2d3748',
-    color: 'white',
-  },
-  buttons: {
-    display: 'flex',
-    gap: '10px',
-  },
-  submitButton: {
-    padding: '10px',
-    backgroundColor: '#28a745',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    flex: 1,
-  },
-  resetButton: {
-    padding: '10px',
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    flex: 1,
-  },
-  resetButtonDark: {
-    padding: '10px',
-    backgroundColor: '#718096',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    flex: 1,
-  },
+TaskForm.propTypes = {
+  darkMode: PropTypes.bool.isRequired,
 };
 
 export default TaskForm;
